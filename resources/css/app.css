@@ -1,0 +1,52 @@
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+    background-color: #000000;
+}
+
+body {
+    background-color: #000000;
+    color: #00ff41;
+}
+
+::selection {
+    background-color: #00ff41;
+    color: #000000;
+}
+
+/* Thin, dark, green-accented scrollbar to match the terminal theme */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #008f11 #050805;
+}
+
+*::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+*::-webkit-scrollbar-track {
+    background: #050805;
+}
+
+*::-webkit-scrollbar-thumb {
+    background-color: #0f3d0f;
+    border-radius: 9999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+    background-color: #008f11;
+}
+
+/* Matrix digital-rain canvas backdrop used on auth screens */
+.matrix-rain-canvas {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    opacity: 0.35;
+    pointer-events: none;
+}
