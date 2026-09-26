@@ -48,7 +48,7 @@ class CreateHotspotVoucherChunkJobTest extends TestCase
         $fakeService->shouldReceive('findHotspotUser')->once()->with('JKT000001')->andReturn(null);
         $fakeService->shouldReceive('createHotspotUser')
             ->once()
-            ->with(['name' => 'JKT000001', 'password' => $voucher->password, 'profile' => $voucher->profile])
+            ->with(['name' => 'JKT000001', 'password' => $voucher->password, 'profile' => $voucher->profile, 'limit_uptime' => null])
             ->andReturn(['.id' => '*7']);
         $this->mockFactory($fakeService);
 

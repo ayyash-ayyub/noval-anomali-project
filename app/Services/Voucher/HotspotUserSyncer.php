@@ -40,6 +40,7 @@ class HotspotUserSyncer
             'name' => $voucher->username,
             'password' => $voucher->password,
             'profile' => $voucher->profile,
+            'limit_uptime' => $voucher->limit_uptime,
         ]);
 
         $voucher->update([

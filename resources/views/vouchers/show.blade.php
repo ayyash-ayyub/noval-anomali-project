@@ -44,6 +44,9 @@
                 <dt class="text-matrix-green-deep">Profile</dt>
                 <dd class="text-matrix-green">{{ $voucher->profile }}</dd>
 
+                <dt class="text-matrix-green-deep">Limit Uptime</dt>
+                <dd class="text-matrix-green">{{ $voucher->limit_uptime ?? '—' }}</dd>
+
                 <dt class="text-matrix-green-deep">Router</dt>
                 <dd class="text-matrix-green">
                     <a href="{{ route('mikrotiks.show', $voucher->mikrotik) }}" class="hover:underline">{{ $voucher->mikrotik->name }}</a>

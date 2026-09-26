@@ -11,6 +11,7 @@ use App\Models\VoucherBatch;
 use App\Services\Mikrotik\Contracts\MikrotikServiceInterface;
 use App\Services\Mikrotik\Exceptions\MikrotikConnectionException;
 use App\Services\Mikrotik\MikrotikServiceFactory;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Mockery;
 use Tests\TestCase;
@@ -46,6 +47,7 @@ class VoucherControllerTest extends TestCase
         $mikrotik = Mikrotik::factory()->create();
 
         $fakeService = Mockery::mock(MikrotikServiceInterface::class);
+        $fakeService->shouldReceive('getHotspotProfiles')->andReturn([['name' => '2 Hours', 'session-timeout' => '02:00:00']]);
         $fakeService->shouldReceive('findHotspotUser')->times(5)->andReturn(null);
         $fakeService->shouldReceive('createHotspotUser')
             ->times(5)
@@ -67,6 +69,23 @@ class VoucherControllerTest extends TestCase
         $batch->refresh();
         $this->assertEquals(VoucherBatchStatus::Completed, $batch->status);
         $this->assertSame(5, Voucher::where('batch_id', $batch->id)->where('status', VoucherStatus::Synced->value)->count());
+        $this->assertSame(5, Voucher::where('batch_id', $batch->id)->where('limit_uptime', '02:00:00')->count());
+    }
+
+    public function test_limit_uptime_stays_null_when_the_router_cannot_be_reached_during_generation(): void
+    {
+        $mikrotik = Mikrotik::factory()->create();
+
+        $fakeService = Mockery::mock(MikrotikServiceInterface::class);
+        $fakeService->shouldReceive('getHotspotProfiles')->andThrow(new MikrotikConnectionException('Connection timed out.'));
+        $fakeService->shouldReceive('findHotspotUser')->andReturn(null);
+        $fakeService->shouldReceive('createHotspotUser')->andReturn(['.id' => '*1']);
+        $this->mockFactory($fakeService);
+
+        $this->actingAs(User::factory()->create())
+            ->post(route('vouchers.store'), $this->validPayload($mikrotik, ['quantity' => 2]));
+
+        $this->assertSame(2, Voucher::whereNull('limit_uptime')->count());
     }
 
     /**
@@ -85,6 +104,7 @@ class VoucherControllerTest extends TestCase
         $mikrotik = Mikrotik::factory()->create();
 
         $fakeService = Mockery::mock(MikrotikServiceInterface::class);
+        $fakeService->shouldReceive('getHotspotProfiles')->andReturn([['name' => '2 Hours', 'session-timeout' => '02:00:00']]);
         $fakeService->shouldReceive('findHotspotUser')->andReturn(null);
         $fakeService->shouldReceive('createHotspotUser')
             ->andThrow(new MikrotikConnectionException('Connection timed out.'));
@@ -104,6 +124,7 @@ class VoucherControllerTest extends TestCase
         $mikrotik = Mikrotik::factory()->create();
 
         $fakeService = Mockery::mock(MikrotikServiceInterface::class);
+        $fakeService->shouldReceive('getHotspotProfiles')->andReturn([['name' => '2 Hours', 'session-timeout' => '02:00:00']]);
         $fakeService->shouldReceive('findHotspotUser')->andReturn(null);
         $fakeService->shouldReceive('createHotspotUser')->andReturn(['.id' => '*1']);
         $this->mockFactory($fakeService);
@@ -126,7 +147,7 @@ class VoucherControllerTest extends TestCase
             'username' => 'DUPLICATE',
         ]);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
 
         Voucher::factory()->create([
             'mikrotik_id' => $mikrotik->id,

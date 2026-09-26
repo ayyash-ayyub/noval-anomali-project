@@ -1,0 +1,1091 @@
+PROMPT PEMBANGUNAN APLIKASI LARAVEL 12
+MIKROTIK WIFI VOUCHER MANAGEMENT SYSTEM
+============================================================
+
+TUJUAN
+------
+Bangun aplikasi web management voucher WiFi berbasis Laravel 12 yang berfungsi
+untuk mengelola beberapa MikroTik RouterOS secara langsung melalui RouterOS API
+atau RouterOS REST API, TANPA menggunakan Mikhmon.
+
+Aplikasi harus dapat:
+1. Mendaftarkan beberapa MikroTik.
+2. Melakukan test koneksi MikroTik.
+3. Memonitor status MikroTik online/offline.
+4. Membaca HotSpot Profile dari MikroTik.
+5. Membuat voucher WiFi secara batch.
+6. Membuat HotSpot User pada MikroTik.
+7. Menyimpan data voucher pada database Laravel.
+8. Menggunakan queue untuk proses batch.
+9. Melakukan retry jika komunikasi dengan MikroTik gagal.
+10. Mencegah duplicate voucher.
+11. Menampilkan active HotSpot users.
+12. Melakukan sinkronisasi data Laravel dengan MikroTik.
+13. Membuat PDF voucher untuk dicetak.
+14. Menyediakan dashboard monitoring.
+15. Menyediakan audit log.
+16. Dirancang agar dapat dikembangkan menjadi platform management voucher.
+
+STACK TEKNOLOGI
+--------------
+- Laravel 12
+- PHP 8.3+
+- Tailwind CSS
+- Blade
+- Alpine.js jika diperlukan untuk interaksi UI
+- MySQL atau PostgreSQL
+- Redis untuk Queue dan Cache
+- Laravel Queue
+- Laravel Scheduler
+- Nginx
+- RouterOS API / RouterOS REST API
+- HTTPS
+- Git
+
+PRINSIP ARSITEKTUR
+------------------
+Laravel adalah aplikasi utama dan MikroTik adalah execution/authentication
+engine untuk HotSpot.
+
+Arsitektur:
+
+Browser
+   |
+   v
+Nginx
+   |
+   v
+Laravel 12
+   |
+   +---- Database
+   |
+   +---- Redis Queue
+   |
+   +---- Scheduler
+   |
+   v
+RouterOS API / REST API
+   |
+   +---- MikroTik 1
+   +---- MikroTik 2
+   +---- MikroTik 3
+   +---- MikroTik 4
+   +---- MikroTik 5
+   +---- MikroTik 6
+
+Jangan membuat Controller berkomunikasi langsung dengan MikroTik.
+Gunakan Service Layer.
+
+SERVICE LAYER
+-------------
+Buat abstraction:
+
+MikrotikServiceInterface
+
+Implementasi minimal:
+- RouterOsApiService
+- RouterOsRestService
+
+Method minimal:
+- testConnection()
+- getRouterInfo()
+- getHotspotProfiles()
+- getHotspotUsers()
+- getActiveHotspotUsers()
+- createHotspotUser()
+- updateHotspotUser()
+- disableHotspotUser()
+- deleteHotspotUser()
+- syncUsers()
+
+Struktur harus memungkinkan penambahan implementasi RouterOS lain tanpa
+mengubah Controller.
+
+MODUL APLIKASI
+--------------
+
+1. AUTHENTICATION
+-----------------
+Gunakan authentication Laravel.
+
+Fitur:
+- Login
+- Logout
+- Session management
+- Authorization
+- Role Based Access Control
+
+Minimal role:
+- Admin
+- Operator
+
+Admin dapat:
+- mengelola MikroTik
+- mengelola user
+- melihat audit log
+- mengatur sistem
+
+Operator dapat:
+- generate voucher
+- melihat voucher
+- melihat active users
+- melihat status MikroTik
+- mencetak voucher
+
+2. MIKROTIK MANAGEMENT
+----------------------
+Halaman:
+
+/mikrotiks
+
+Fitur:
+- List MikroTik
+- Add MikroTik
+- Edit MikroTik
+- Delete MikroTik
+- Test Connection
+- View Detail
+- View Status
+- Sync
+- View Router Information
+
+Field:
+- id
+- name
+- host
+- port
+- username
+- password_encrypted
+- api_type
+- ssl_enabled
+- status
+- description
+- last_check_at
+- last_online_at
+- last_offline_at
+- last_response_time
+- last_error
+- created_at
+- updated_at
+
+Password MikroTik WAJIB dienkripsi.
+Jangan menyimpan credential dalam plaintext di log.
+
+Default RouterOS:
+- API: 8728
+- API SSL: 8729
+
+Tetapi port harus configurable.
+
+STATUS MIKROTIK
+---------------
+Status jangan hanya berdasarkan ping.
+
+Gunakan API health check.
+
+Status:
+- ONLINE
+- DEGRADED
+- OFFLINE
+
+Contoh:
+< 300 ms = ONLINE
+300-2000 ms = DEGRADED
+timeout/error = OFFLINE
+
+Status harus diperbarui:
+- ketika Test Connection dilakukan
+- melalui Laravel Scheduler
+- sebelum operasi penting jika diperlukan
+
+Scheduler default:
+check MikroTik setiap 1 menit.
+
+Simpan:
+- last_check_at
+- last_online_at
+- last_offline_at
+- response_time
+- error message
+
+3. HOTSPOT PROFILE
+------------------
+Laravel harus dapat membaca profile dari MikroTik.
+
+Contoh:
+- 1 Hour
+- 2 Hours
+- 4 Hours
+- 1 Day
+- 7 Days
+
+Informasi profile dapat mencakup:
+- name
+- session timeout
+- rate limit
+- idle timeout
+- shared users
+- address pool
+- parameter HotSpot lainnya
+
+Gunakan profile yang sudah tersedia di MikroTik.
+
+4. VOUCHER MANAGEMENT
+---------------------
+Halaman:
+- Voucher List
+- Generate Voucher
+- Voucher Detail
+- Batch Detail
+- Print Voucher
+- Download PDF
+
+Voucher fields:
+
+id
+batch_id
+mikrotik_id
+username
+password
+profile
+status
+router_user_id
+limit_uptime
+created_at
+activated_at
+expired_at
+disabled_at
+last_synced_at
+sync_error
+
+Status:
+- PENDING
+- SYNCED / AVAILABLE
+- ACTIVE
+- USED
+- EXPIRED
+- DISABLED
+- FAILED
+
+5. BATCH VOUCHER
+----------------
+Halaman:
+
+/vouchers/generate
+
+Form:
+
+MikroTik
+Profile
+Quantity
+Username Prefix
+Username Generation Method
+Username Length
+Password Generation Method
+Password Length
+
+Contoh:
+
+MikroTik : Jakarta
+Profile  : 2 Hours
+Quantity : 1000
+Prefix   : JKT
+Username : Sequential
+Password : Random 6 Digit
+
+Contoh output:
+
+JKT000001 / 839271
+JKT000002 / 182739
+JKT000003 / 719283
+...
+JKT001000 / 827192
+
+Batch fields:
+
+id
+mikrotik_id
+batch_code
+profile
+quantity
+username_prefix
+username_length
+password_length
+generation_method
+status
+created_by
+created_at
+updated_at
+
+Batch status:
+- PENDING
+- PROCESSING
+- COMPLETED
+- PARTIAL
+- FAILED
+
+6. QUEUE PROCESSING
+-------------------
+Jangan memproses 1.000 voucher dalam satu HTTP request.
+
+Gunakan Laravel Queue + Redis.
+
+Contoh:
+
+Batch 1000 voucher
+       |
+       v
+Database
+       |
+       v
+Redis Queue
+       |
+       +-- Job 1: 100 voucher
+       +-- Job 2: 100 voucher
+       +-- Job 3: 100 voucher
+       ...
+       +-- Job 10: 100 voucher
+       |
+       v
+MikroTik API
+
+Worker jangan dibuat terlalu banyak.
+
+Target deployment awal:
+- 1-2 queue worker
+- 2 vCPU
+- 2 GB RAM
+- 40 GB SSD
+
+Queue yang dapat digunakan:
+- voucher-generation
+- mikrotik-sync
+- active-user-sync
+- report
+- pdf-generation
+
+Gunakan:
+- retry
+- timeout
+- backoff
+- failed_jobs
+- idempotency
+
+7. IDEMPOTENCY
+--------------
+Sistem WAJIB mencegah duplicate user pada MikroTik.
+
+Skenario:
+
+Laravel mengirim JKT000001
+MikroTik berhasil membuat user
+response timeout
+Laravel menganggap gagal
+queue melakukan retry
+
+Sebelum create ulang:
+1. Check username pada MikroTik.
+2. Jika sudah ada, anggap sebagai success/synced.
+3. Jangan membuat duplicate.
+
+Gunakan:
+- unique username
+- database unique constraint
+- batch ID
+- voucher ID
+- MikroTik user lookup
+
+Database constraint:
+UNIQUE(mikrotik_id, username)
+
+8. ACTIVE USER MONITORING
+-------------------------
+Baca:
+
+/ip/hotspot/active
+
+Tampilkan:
+- Username
+- IP Address
+- MAC Address
+- Uptime
+- Idle Time
+- Profile
+- Login Method
+
+Dashboard dapat menampilkan:
+- Total active users
+- Active users per MikroTik
+- Detail active sessions
+
+9. SYNCHRONIZATION
+------------------
+Laravel dapat melakukan sinkronisasi:
+
+Laravel
+   |
+   v
+Read HotSpot Users
+   |
+   v
+MikroTik
+   |
+   v
+Compare
+   |
+   +-- User sesuai
+   +-- User Laravel tetapi tidak ada di MikroTik
+   +-- User MikroTik tetapi tidak ada di Laravel
+
+Jangan otomatis menghapus data karena discrepancy.
+
+Tampilkan discrepancy untuk ditindaklanjuti administrator.
+
+10. DASHBOARD
+-------------
+Dashboard harus sederhana, modern, responsive menggunakan Tailwind CSS.
+
+Card:
+
+Total MikroTik
+Online
+Offline
+Total Voucher
+Available Voucher
+Active Voucher
+Used Voucher
+Expired Voucher
+Failed Voucher
+Active Users
+
+Tambahan:
+- Voucher Generated Today
+- Voucher Used Today
+- Recent Batch
+- Recent Errors
+- MikroTik status
+- Response time
+- Last sync
+
+11. UI / UX
+-----------
+Gunakan Tailwind CSS.
+
+Style:
+- clean
+- modern
+- professional
+- responsive
+- desktop-first tetapi tetap mobile responsive
+
+Gunakan:
+- Sidebar navigation
+- Top navigation
+- Cards
+- Tables
+- Modal
+- Badge status
+- Toast notification
+- Progress bar
+- Loading state
+- Empty state
+- Confirmation dialog
+
+Status color convention:
+ONLINE = green
+DEGRADED = yellow
+OFFLINE = red
+PENDING = gray
+PROCESSING = blue
+COMPLETED = green
+PARTIAL = yellow
+FAILED = red
+
+Jangan membuat UI terlalu kompleks.
+
+12. BATCH PROGRESS
+------------------
+Saat batch berjalan, tampilkan:
+
+Batch: WIFI-2026-09-001
+
+Total   : 1000
+Success : 718
+Failed  : 2
+Pending : 280
+
+Progress:
+72%
+
+Status:
+PROCESSING
+
+Gunakan polling ringan atau mekanisme realtime jika diperlukan.
+
+Tidak perlu WebSocket pada MVP jika polling sudah cukup.
+
+13. PDF VOUCHER
+---------------
+Setelah batch selesai user dapat:
+
+- Print All
+- Print Selected
+- Download PDF
+- A4
+- A5
+- Thermal Printer
+- Custom Card
+
+Template:
+
++--------------------------+
+|       WIFI ACCESS        |
+|                          |
+| Username: JKT000123      |
+| Password: 827192         |
+|                          |
+| Package : 2 Hours        |
+|                          |
+| WiFi Login Information   |
++--------------------------+
+
+Gunakan library PDF yang kompatibel dengan Laravel 12.
+
+PDF generation sebaiknya menggunakan queue untuk batch besar.
+
+14. DATABASE
+------------
+Buat migration untuk:
+
+users
+mikrotiks
+voucher_batches
+vouchers
+audit_logs
+failed_jobs
+
+Tabel mikrotiks:
+
+id
+name
+host
+port
+username
+password_encrypted
+api_type
+ssl_enabled
+status
+description
+last_check_at
+last_online_at
+last_offline_at
+last_response_time
+last_error
+created_at
+updated_at
+
+Tabel voucher_batches:
+
+id
+mikrotik_id
+batch_code
+profile
+quantity
+username_prefix
+username_length
+password_length
+generation_method
+status
+created_by
+created_at
+updated_at
+
+Tabel vouchers:
+
+id
+batch_id
+mikrotik_id
+username
+password
+profile
+status
+router_user_id
+limit_uptime
+created_at
+activated_at
+expired_at
+disabled_at
+last_synced_at
+sync_error
+
+Tabel audit_logs:
+
+id
+user_id
+action
+target_type
+target_id
+mikrotik_id
+ip_address
+result
+description
+created_at
+
+Tambahkan foreign key dan index yang sesuai.
+
+Index penting:
+- mikrotik_id
+- batch_id
+- username
+- status
+- created_at
+- last_synced_at
+
+15. SECURITY
+------------
+WAJIB:
+- Laravel authentication
+- Authorization
+- CSRF protection
+- Validation
+- Rate limiting
+- Encryption credential MikroTik
+- Audit log
+- API timeout
+- HTTPS
+- Secure session
+- Password hashing
+- Mass assignment protection
+
+Jangan:
+- hardcode password MikroTik
+- hardcode API credential
+- menyimpan credential di source code
+- menampilkan password MikroTik di log
+- menampilkan credential sensitif di exception response
+
+Jika RouterOS API dapat diakses melalui VPN/private network,
+lebih baik menggunakan VPN/private network.
+
+16. ERROR HANDLING
+------------------
+Jika MikroTik offline:
+
+Voucher tetap tersimpan sebagai:
+PENDING
+
+Queue retry.
+
+Jika sebagian berhasil:
+
+Batch:
+PARTIAL
+
+Jika semua berhasil:
+
+Batch:
+COMPLETED
+
+Simpan error pada:
+vouchers.sync_error
+
+Gunakan retry dengan exponential backoff.
+
+17. AUDIT LOG
+-------------
+Catat:
+- Login
+- Logout
+- Add MikroTik
+- Update MikroTik
+- Delete MikroTik
+- Test Connection
+- Generate Batch
+- Create Voucher
+- Retry Voucher
+- Disable Voucher
+- Sync
+- Generate PDF
+
+Audit log tidak boleh menyimpan:
+- Password MikroTik
+- Password user sensitif
+- API credential
+
+18. ROUTING
+-----------
+Gunakan route yang terstruktur:
+
+/dashboard
+
+/mikrotiks
+/mikrotiks/create
+/mikrotiks/{id}
+/mikrotiks/{id}/edit
+/mikrotiks/{id}/test
+/mikrotiks/{id}/sync
+
+/hotspot/profiles
+/hotspot/users
+/hotspot/active
+
+/vouchers
+/vouchers/generate
+/vouchers/batches
+/vouchers/batches/{id}
+/vouchers/{id}
+/vouchers/{id}/disable
+/vouchers/print
+
+/reports
+
+/audit-logs
+
+/settings
+
+19. CONTROLLER
+--------------
+Controller harus tipis.
+
+Jangan memasukkan business logic MikroTik ke Controller.
+
+Contoh:
+
+VoucherController
+MikrotikController
+HotspotController
+BatchController
+DashboardController
+ReportController
+AuditLogController
+
+Gunakan Service class untuk business logic.
+
+20. FORM REQUEST
+----------------
+Gunakan Laravel Form Request untuk validation.
+
+Contoh:
+StoreMikrotikRequest
+UpdateMikrotikRequest
+GenerateVoucherRequest
+
+21. MODEL / RELATIONSHIP
+------------------------
+Model minimal:
+
+Mikrotik
+VoucherBatch
+Voucher
+AuditLog
+User
+
+Relationship:
+
+Mikrotik
+  hasMany VoucherBatch
+  hasMany Voucher
+
+VoucherBatch
+  belongsTo Mikrotik
+  hasMany Voucher
+  belongsTo User
+
+Voucher
+  belongsTo VoucherBatch
+  belongsTo Mikrotik
+
+22. CONFIGURATION
+-----------------
+Jangan hardcode konfigurasi penting.
+
+Gunakan .env:
+
+APP_NAME=
+APP_ENV=
+APP_KEY=
+APP_URL=
+
+DB_CONNECTION=
+DB_HOST=
+DB_PORT=
+DB_DATABASE=
+DB_USERNAME=
+DB_PASSWORD=
+
+REDIS_HOST=
+REDIS_PORT=
+REDIS_PASSWORD=
+
+QUEUE_CONNECTION=redis
+
+MikroTik default timeout:
+MIKROTIK_CONNECT_TIMEOUT=
+MIKROTIK_READ_TIMEOUT=
+
+23. SCHEDULER
+------------
+Gunakan Laravel Scheduler untuk:
+
+- health check MikroTik
+- sync users
+- cleanup temporary files
+- cleanup expired data jika diperlukan
+- monitoring failed jobs
+
+Contoh:
+health check setiap 1 menit.
+
+24. PERFORMANCE
+---------------
+Target:
+- 6 MikroTik
+- sampai 1.000 voucher per MikroTik per batch
+- total awal sekitar 6.000 voucher
+- dapat berkembang ke 10+ MikroTik
+- dapat berkembang ke 10.000 voucher/batch
+
+Optimasi:
+- Queue
+- Redis
+- Database indexes
+- Batch processing
+- Pagination
+- Lazy loading
+- Eager loading jika diperlukan
+- Retry
+- Idempotency
+
+Jangan melakukan query database berulang di dalam loop jika dapat dihindari.
+
+25. PAGINATION
+--------------
+Semua list menggunakan pagination.
+
+Jangan mengambil seluruh voucher sekaligus.
+
+Contoh:
+50 atau 100 record per halaman.
+
+26. API COMMUNICATION
+---------------------
+Semua komunikasi MikroTik harus berada pada Service Layer.
+
+Timeout wajib diterapkan.
+
+Jika RouterOS API library membutuhkan package Composer,
+gunakan package yang kompatibel dengan Laravel 12 dan PHP 8.3+.
+
+Jangan membuat dependency yang tidak diperlukan.
+
+Jika RouterOS REST API digunakan, gunakan Laravel HTTP Client dengan:
+- timeout
+- connect timeout
+- exception handling
+- authentication yang aman
+
+27. LOGGING
+-----------
+Gunakan Laravel logging.
+
+Log hanya informasi teknis yang aman.
+
+Contoh:
+MikroTik ID
+Batch ID
+Voucher ID
+request duration
+success/failure
+
+Jangan log:
+- MikroTik password
+- voucher password
+- authentication token
+
+28. TESTING
+-----------
+Buat automated test minimal untuk:
+
+- Login
+- CRUD MikroTik
+- Test connection
+- Generate username
+- Generate password
+- Generate batch
+- Voucher uniqueness
+- Queue job
+- Idempotency
+- Status batch
+- Authorization
+- Validation
+
+Buat unit test untuk MikrotikService menggunakan mock,
+jangan selalu mengakses MikroTik asli saat testing.
+
+29. DEVELOPMENT ORDER
+---------------------
+Bangun aplikasi secara bertahap.
+
+PHASE 1 - FOUNDATION
+- Laravel 12
+- Tailwind CSS
+- Authentication
+- Database
+- Layout
+- Dashboard basic
+
+PHASE 2 - MIKROTIK
+- CRUD MikroTik
+- Credential encryption
+- RouterOS connection
+- Test connection
+- Health check
+- Online/offline status
+
+PHASE 3 - HOTSPOT
+- Read HotSpot Profile
+- Read HotSpot Users
+- Read Active Users
+
+PHASE 4 - VOUCHER
+- Batch
+- Username generator
+- Password generator
+- Database
+- Create HotSpot User
+
+PHASE 5 - QUEUE
+- Redis
+- Queue
+- Batch processing
+- Retry
+- Failed jobs
+- Idempotency
+
+PHASE 6 - MONITORING
+- Dashboard
+- Active user
+- Router status
+- Sync
+
+PHASE 7 - PDF
+- Voucher template
+- PDF generation
+- Print
+
+PHASE 8 - SECURITY
+- RBAC
+- Audit log
+- Rate limit
+- Hardening
+
+30. MVP
+------
+MVP WAJIB dapat melakukan:
+
+1. Login
+2. Add MikroTik
+3. Test connection
+4. Menampilkan ONLINE/OFFLINE
+5. Read HotSpot Profile
+6. Generate 1.000 voucher
+7. Menyimpan voucher
+8. Queue voucher
+9. Create HotSpot User melalui RouterOS API
+10. Retry failed jobs
+11. Idempotency
+12. Voucher status
+13. List voucher
+14. Active users
+15. Basic dashboard
+16. PDF voucher
+17. Audit log
+
+31. KETENTUAN IMPLEMENTASI UNTUK AI CODING AGENT
+------------------------------------------------
+Saat mengimplementasikan aplikasi:
+
+- Gunakan Laravel 12.
+- Gunakan Tailwind CSS.
+- Gunakan Blade sebagai default frontend.
+- Gunakan Alpine.js hanya jika diperlukan.
+- Jangan menggunakan React/Vue kecuali benar-benar diperlukan.
+- Gunakan clean architecture sederhana yang mudah dipelihara.
+- Gunakan Service Layer.
+- Gunakan Repository hanya jika memang memberikan manfaat.
+- Gunakan dependency injection.
+- Gunakan Form Request.
+- Gunakan Policies/Gates untuk authorization.
+- Gunakan Jobs untuk proses MikroTik batch.
+- Gunakan Events/Listeners jika diperlukan.
+- Gunakan Laravel Scheduler.
+- Gunakan Redis Queue.
+- Gunakan database transaction pada proses yang membutuhkan atomicity.
+- Jangan membuat satu Controller dengan business logic yang terlalu besar.
+- Jangan membuat satu file PHP yang terlalu besar.
+- Gunakan naming convention Laravel.
+- Gunakan migration, model, factory, seeder.
+- Gunakan environment variable untuk konfigurasi.
+- Jangan hardcode credential.
+- Jangan menghapus data secara otomatis ketika synchronization discrepancy ditemukan.
+
+32. OUTPUT YANG DIHARAPKAN DARI AI CODING AGENT
+-----------------------------------------------
+Kerjakan project secara bertahap dan selalu menjaga aplikasi tetap runnable.
+
+Untuk setiap tahap:
+1. Jelaskan file yang dibuat/diubah.
+2. Buat migration.
+3. Buat model.
+4. Buat service.
+5. Buat controller.
+6. Buat request validation.
+7. Buat route.
+8. Buat Blade/Tailwind UI.
+9. Buat Job jika membutuhkan queue.
+10. Buat test.
+11. Berikan command artisan yang diperlukan.
+12. Pastikan tidak ada kode placeholder yang dianggap sudah selesai.
+13. Jangan mengklaim fitur selesai jika belum diimplementasikan.
+
+Jika terdapat konfigurasi MikroTik yang belum diketahui,
+buat abstraction/configuration yang dapat disesuaikan dan jangan menebak
+parameter RouterOS secara sembarangan.
+
+PRIORITAS UTAMA
+---------------
+Prioritaskan:
+
+1. Stabilitas koneksi MikroTik.
+2. Keamanan credential.
+3. Idempotency.
+4. Queue processing.
+5. Database consistency.
+6. Error handling.
+7. Monitoring.
+8. UI yang sederhana dan mudah digunakan.
+9. Kemudahan maintenance.
+10. Scalability.
+
+HASIL AKHIR
+-----------
+Aplikasi harus menjadi sistem Laravel 12 untuk management voucher WiFi
+MikroTik yang dapat:
+
+- Mengelola 6+ MikroTik.
+- Mengecek status router.
+- Membaca HotSpot Profile.
+- Generate voucher batch.
+- Generate sekitar 1.000 voucher per MikroTik.
+- Membuat HotSpot User melalui RouterOS API.
+- Memproses batch melalui Redis Queue.
+- Retry ketika terjadi error.
+- Mencegah duplicate voucher.
+- Menampilkan active users.
+- Sinkronisasi data.
+- Generate PDF voucher.
+- Menyediakan dashboard.
+- Menyediakan audit log.
+
+Aplikasi ini tidak menggunakan Mikhmon.
+Laravel berkomunikasi langsung dengan MikroTik melalui RouterOS API/REST API.

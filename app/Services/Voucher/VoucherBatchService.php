@@ -9,6 +9,8 @@ use App\Jobs\CreateHotspotVoucherChunkJob;
 use App\Models\Mikrotik;
 use App\Models\Voucher;
 use App\Models\VoucherBatch;
+use App\Services\Mikrotik\Exceptions\MikrotikConnectionException;
+use App\Services\Mikrotik\MikrotikServiceFactory;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -28,8 +30,8 @@ class VoucherBatchService
     public function __construct(
         private readonly UsernameGenerator $usernameGenerator,
         private readonly PasswordGenerator $passwordGenerator,
-    ) {
-    }
+        private readonly MikrotikServiceFactory $serviceFactory,
+    ) {}
 
     /**
      * @param  array{
@@ -56,7 +58,16 @@ class VoucherBatchService
             $data['quantity'],
         );
 
-        $batch = DB::transaction(function () use ($data, $mikrotik, $usernames, $passwords, $createdBy) {
+        // Read the profile's own session-timeout live from the router
+        // rather than trusting a value submitted from the browser — the
+        // generate form only posts the profile's name, never its
+        // parameters (spec section 15: don't trust client input for
+        // security/business-relevant values). Falls back to null (today's
+        // behavior) if the router can't be reached right now; the batch
+        // still proceeds.
+        $limitUptime = $this->resolveLimitUptime($mikrotik, $data['profile']);
+
+        $batch = DB::transaction(function () use ($data, $mikrotik, $usernames, $passwords, $createdBy, $limitUptime) {
             $batch = VoucherBatch::create([
                 'mikrotik_id' => $mikrotik->id,
                 'batch_code' => $this->generateBatchCode(),
@@ -80,6 +91,7 @@ class VoucherBatchService
                     'password' => $password,
                     'profile' => $data['profile'],
                     'status' => 'PENDING',
+                    'limit_uptime' => $limitUptime,
                     'created_at' => $now,
                     'updated_at' => $now,
                 ],
@@ -148,5 +160,19 @@ class VoucherBatchService
     private function generateBatchCode(): string
     {
         return 'WIFI-'.now()->format('Y-m-d').'-'.strtoupper(Str::random(4));
+    }
+
+    private function resolveLimitUptime(Mikrotik $mikrotik, string $profileName): ?string
+    {
+        try {
+            $profiles = $this->serviceFactory->make($mikrotik)->getHotspotProfiles();
+        } catch (MikrotikConnectionException) {
+            return null;
+        }
+
+        $profile = collect($profiles)->firstWhere('name', $profileName);
+        $sessionTimeout = $profile['session-timeout'] ?? null;
+
+        return in_array($sessionTimeout, [null, '', '0s', 'none'], true) ? null : $sessionTimeout;
     }
 }
