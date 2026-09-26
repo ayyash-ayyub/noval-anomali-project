@@ -17,12 +17,12 @@
             <div class="mb-6 flex flex-col items-center text-center">
                 <img
                     src="{{ asset('images/logo.jpeg') }}"
-                    alt="Noval Anomali"
+                    alt="Alcom"
                     class="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl object-cover shadow-matrix-glow-lg mb-3"
                 >
                 <p class="text-xs tracking-[0.4em] text-matrix-green-dim uppercase">System Access</p>
                 <h1 class="mt-1 text-2xl sm:text-3xl font-bold tracking-widest text-matrix-green drop-shadow-[0_0_8px_rgba(0,255,65,0.6)]">
-                    NOVAL ANOMALI
+                    ALCOM
                 </h1>
                 <p class="text-[11px] text-matrix-green-dark mt-1">WiFi Voucher Management System</p>
             </div>
@@ -32,7 +32,7 @@
             </div>
 
             <p class="mt-6 text-[11px] text-matrix-green-deep">
-                &copy; {{ date('Y') }} Noval Anomali &mdash; authorized access only
+                &copy; {{ date('Y') }} Alcom &mdash; authorized access only
             </p>
         </div>
     </body>
