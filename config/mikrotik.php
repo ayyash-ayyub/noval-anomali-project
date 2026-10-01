@@ -40,15 +40,33 @@ return [
     | Status Thresholds (milliseconds)
     |--------------------------------------------------------------------------
     |
-    | < online_max  => ONLINE
-    | online_max..degraded_max => DEGRADED
-    | timeout/error/> degraded_max => OFFLINE
+    | Classification for a round trip that actually came back (spec section
+    | 2's "Contoh" values are the starting point, not a fixed rule):
+    |
+    |   < online_max_ms  => ONLINE
+    |   >= online_max_ms => DEGRADED
+    |
+    | OFFLINE is reserved for "timeout/error" per spec — i.e. the call threw
+    | (see Concerns\ClassifiesConnectionStatus and each service's catch
+    | block), never a slow-but-successful response. There is deliberately
+    | no latency ceiling that downgrades a successful call to OFFLINE.
+    |
+    | The default below (500ms) assumes the router may be reached over the
+    | public internet rather than a LAN — a real production router tested
+    | over its public IP measured a consistent 384-450ms round trip, which
+    | the original 300ms spec example would have permanently misreported as
+    | DEGRADED. Tune per deployment via .env; a LAN-only/VPN router can set
+    | this back down to 300.
+    |
+    | 'degraded_max_ms' is advisory only (not an enforced ceiling) — kept as
+    | spec's original reference point for how slow is "still fine" to show
+    | an operator, available for future alerting/logging if ever needed.
     |
     */
 
     'status_thresholds' => [
-        'online_max_ms' => 300,
-        'degraded_max_ms' => 2000,
+        'online_max_ms' => (int) env('MIKROTIK_ONLINE_MAX_MS', 500),
+        'degraded_max_ms' => (int) env('MIKROTIK_DEGRADED_MAX_MS', 2000),
     ],
 
     /*

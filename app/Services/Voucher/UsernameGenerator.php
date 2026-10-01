@@ -27,7 +27,12 @@ class UsernameGenerator
     ): array {
         return match ($method) {
             UsernameGenerationMethod::Sequential => $this->sequential($prefix, $length, $quantity, $mikrotikId),
-            UsernameGenerationMethod::Random => $this->random($prefix, $length, $quantity, $mikrotikId),
+            // "User = Password" still needs a generated base value — a
+            // random code (rather than a predictable sequential number)
+            // is the right choice here since the same string becomes the
+            // password too; VoucherBatchService::generate() copies these
+            // straight into the password column.
+            UsernameGenerationMethod::Random, UsernameGenerationMethod::UserEqualsPassword => $this->random($prefix, $length, $quantity, $mikrotikId),
         };
     }
 

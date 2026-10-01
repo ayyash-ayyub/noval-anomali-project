@@ -102,6 +102,26 @@ class VoucherGeneratorsTest extends TestCase
         $this->assertCount(10, $usernames);
     }
 
+    public function test_user_equals_password_usernames_are_unique_and_correct_quantity(): void
+    {
+        $mikrotik = Mikrotik::factory()->create();
+
+        $usernames = (new UsernameGenerator)->generate(
+            UsernameGenerationMethod::UserEqualsPassword,
+            'JKT',
+            6,
+            20,
+            $mikrotik->id,
+        );
+
+        $this->assertCount(20, $usernames);
+        $this->assertCount(20, array_unique($usernames));
+
+        foreach ($usernames as $username) {
+            $this->assertStringStartsWith('JKT', $username);
+        }
+    }
+
     public function test_numeric_password_has_correct_length_and_digits_only(): void
     {
         $password = (new PasswordGenerator)->generate(PasswordGenerationMethod::Numeric, 6);

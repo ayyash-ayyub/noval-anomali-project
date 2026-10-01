@@ -6,7 +6,7 @@
     @else
         <div class="mb-6">
             <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
-                <x-stat-card label="Total Active Users" :value="count($sessions)" accent="green" />
+                <x-stat-card label="Total Active Users" :value="$totalActive" accent="green" />
                 <x-stat-card label="Router Online" :value="$mikrotiks->count() - count($routerErrors)" accent="green" />
                 <x-stat-card label="Router Bermasalah" :value="count($routerErrors)" accent="red" />
             </div>
@@ -31,7 +31,7 @@
         @endforeach
 
         <div class="bg-matrix-panel border border-matrix-border rounded-md overflow-hidden">
-            @if (empty($sessions))
+            @if ($sessions->isEmpty())
                 <div class="text-center py-16">
                     <p class="text-matrix-green-dim text-sm">Tidak ada sesi HotSpot yang sedang aktif.</p>
                 </div>
@@ -64,6 +64,10 @@
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+
+                <div class="px-4 py-3 border-t border-matrix-border">
+                    {{ $sessions->links() }}
                 </div>
             @endif
         </div>

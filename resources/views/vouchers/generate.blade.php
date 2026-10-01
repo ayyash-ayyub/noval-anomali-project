@@ -23,17 +23,38 @@
             <form method="POST" action="{{ route('vouchers.store') }}" class="max-w-3xl bg-matrix-panel border border-matrix-border rounded-md p-6"
                 x-data="{
                     prefix: '{{ old('username_prefix', 'JKT') }}',
+                    usernameMethod: '{{ old('username_method', 'sequential') }}',
                     usernameLength: {{ old('username_length', 6) }},
                     passwordMethod: '{{ old('password_method', 'numeric') }}',
                     passwordLength: {{ old('password_length', 6) }},
-                    get usernamePreview() {
-                        return this.prefix.toUpperCase() + '1'.padStart(this.usernameLength, '0');
+                    get isUserEqualsPassword() {
+                        return this.usernameMethod === 'user_equals_password';
                     },
-                    get passwordPreview() {
-                        const chars = this.passwordMethod === 'numeric' ? '0123456789' : 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                    randomCode(length) {
+                        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
                         let out = '';
-                        for (let i = 0; i < this.passwordLength; i++) out += chars[Math.floor(Math.random() * chars.length)];
+                        for (let i = 0; i < length; i++) out += chars[Math.floor(Math.random() * chars.length)];
                         return out;
+                    },
+                    // Computed together (not as two separate getters) so
+                    // 'User = Password' mode always previews the exact
+                    // same value for both — two independent getters would
+                    // each draw their own random string and desync.
+                    get preview() {
+                        if (this.isUserEqualsPassword) {
+                            const code = this.prefix.toUpperCase() + this.randomCode(this.usernameLength);
+
+                            return { username: code, password: code };
+                        }
+
+                        const passwordChars = this.passwordMethod === 'numeric' ? '0123456789' : 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                        let password = '';
+                        for (let i = 0; i < this.passwordLength; i++) password += passwordChars[Math.floor(Math.random() * passwordChars.length)];
+
+                        return {
+                            username: this.prefix.toUpperCase() + '1'.padStart(this.usernameLength, '0'),
+                            password,
+                        };
                     }
                 }"
             >
@@ -76,7 +97,7 @@
 
                     <div>
                         <x-input-label for="username_method" value="Username Generation Method" />
-                        <select id="username_method" name="username_method" required
+                        <select id="username_method" name="username_method" required x-model="usernameMethod"
                             class="mt-1 block w-full bg-black border-matrix-border text-matrix-green focus:border-matrix-green focus:ring-matrix-green rounded-md shadow-sm font-mono">
                             @foreach (\App\Enums\UsernameGenerationMethod::cases() as $method)
                                 <option value="{{ $method->value }}" @selected(old('username_method', 'sequential') === $method->value)>
@@ -84,6 +105,9 @@
                                 </option>
                             @endforeach
                         </select>
+                        <p class="mt-1 text-[11px] text-matrix-green-deep" x-show="isUserEqualsPassword" x-cloak>
+                            Password akan otomatis sama dengan username &mdash; field Password di bawah diabaikan.
+                        </p>
                         <x-input-error :messages="$errors->get('username_method')" class="mt-2" />
                     </div>
 
@@ -94,7 +118,7 @@
                         <x-input-error :messages="$errors->get('username_length')" class="mt-2" />
                     </div>
 
-                    <div>
+                    <div x-show="! isUserEqualsPassword" x-cloak>
                         <x-input-label for="password_method" value="Password Generation Method" />
                         <select id="password_method" name="password_method" required x-model="passwordMethod"
                             class="mt-1 block w-full bg-black border-matrix-border text-matrix-green focus:border-matrix-green focus:ring-matrix-green rounded-md shadow-sm font-mono">
@@ -107,7 +131,7 @@
                         <x-input-error :messages="$errors->get('password_method')" class="mt-2" />
                     </div>
 
-                    <div>
+                    <div x-show="! isUserEqualsPassword" x-cloak>
                         <x-input-label for="password_length" value="Password Length" />
                         <x-text-input id="password_length" name="password_length" type="number" min="4" max="20" class="mt-1 block w-full"
                             x-model.number="passwordLength" :value="old('password_length', 6)" required />
@@ -117,7 +141,7 @@
 
                 <div class="mt-6 px-4 py-3 rounded border border-matrix-border bg-black text-sm">
                     <p class="text-[10px] uppercase tracking-widest text-matrix-green-deep mb-1">Preview</p>
-                    <p class="font-mono text-matrix-green" x-text="usernamePreview + ' / ' + passwordPreview"></p>
+                    <p class="font-mono text-matrix-green" x-text="preview.username + ' / ' + preview.password"></p>
                 </div>
 
                 <div class="flex items-center gap-3 mt-6">

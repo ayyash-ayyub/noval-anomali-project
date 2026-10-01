@@ -4,9 +4,17 @@
     @if ($mikrotiks->isEmpty())
         @include('hotspot.partials.no-mikrotiks')
     @else
-        <div class="flex items-center justify-between mb-4">
+        <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
             <p class="text-sm text-matrix-green-dim">Profile HotSpot dibaca langsung dari router (tidak disimpan lokal).</p>
-            @include('hotspot.partials.mikrotik-selector')
+            <div class="flex items-center gap-3">
+                @include('hotspot.partials.mikrotik-selector')
+                @can('createHotspotProfile', \App\Models\Mikrotik::class)
+                    <a href="{{ route('hotspot.profiles.create', $selected ? ['mikrotik' => $selected->id] : []) }}"
+                        class="inline-flex items-center gap-1.5 px-4 py-2 border border-matrix-green text-matrix-green text-xs uppercase tracking-widest rounded hover:bg-matrix-green hover:text-black transition-colors shadow-matrix-glow">
+                        <span>&#43;</span> Add Profile
+                    </a>
+                @endcan
+            </div>
         </div>
 
         @if ($error)

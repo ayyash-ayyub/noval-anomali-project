@@ -16,11 +16,11 @@
         @endif
 
         <div class="bg-matrix-panel border border-matrix-border rounded-md overflow-hidden">
-            @if (! $error && empty($users))
+            @if (! $error && $users->isEmpty())
                 <div class="text-center py-16">
                     <p class="text-matrix-green-dim text-sm">Tidak ada HotSpot user pada router ini.</p>
                 </div>
-            @elseif (! empty($users))
+            @elseif ($users->isNotEmpty())
                 <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead>
@@ -52,6 +52,10 @@
                             @endforeach
                         </tbody>
                     </table>
+                </div>
+
+                <div class="px-4 py-3 border-t border-matrix-border">
+                    {{ $users->links() }}
                 </div>
             @endif
         </div>

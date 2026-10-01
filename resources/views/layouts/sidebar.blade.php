@@ -33,6 +33,9 @@
         <x-sidebar-link :href="route('hotspot.active')" :active="request()->routeIs('hotspot.active')">
             <span>&#9889;</span> Active Users
         </x-sidebar-link>
+        <x-sidebar-link :href="route('hotspot.ip-bindings')" :active="request()->routeIs('hotspot.ip-bindings*')">
+            <span>&#128225;</span> IP Bindings
+        </x-sidebar-link>
 
         <p class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-matrix-green-deep">Voucher</p>
         <x-sidebar-link :href="route('vouchers.index')" :active="request()->routeIs('vouchers.index')">

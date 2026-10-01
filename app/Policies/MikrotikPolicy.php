@@ -45,4 +45,26 @@ class MikrotikPolicy
     {
         return true;
     }
+
+    /**
+     * Creating a HotSpot user profile mutates the router's own
+     * configuration (not a voucher), so it falls under "mengelola
+     * MikroTik" — the same Admin-only privilege as create/update/delete.
+     * Not tied to a specific router instance since the ability doesn't
+     * vary per-router; checked via Mikrotik::class, same as create().
+     */
+    public function createHotspotProfile(User $user): bool
+    {
+        return $user->isAdmin();
+    }
+
+    /**
+     * Creating an IP binding (/ip/hotspot/ip-binding) is the same kind of
+     * router-configuration mutation as createHotspotProfile() — Admin-only,
+     * not tied to a specific router.
+     */
+    public function createIpBinding(User $user): bool
+    {
+        return $user->isAdmin();
+    }
 }

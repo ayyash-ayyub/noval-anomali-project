@@ -39,6 +39,50 @@ interface MikrotikServiceInterface
     public function getHotspotProfiles(): array;
 
     /**
+     * IP pools configured on the router (/ip/pool), used to populate the
+     * Address Pool choice when creating a HotSpot profile — never guessed
+     * or hardcoded, always read live from the device.
+     *
+     * @return array<int, array<string, mixed>>
+     *
+     * @throws MikrotikConnectionException
+     */
+    public function getIpPools(): array;
+
+    /**
+     * Creates a new HotSpot user profile on the router. Only RouterOS'
+     * own native profile fields are sent — see StoreHotspotProfileRequest
+     * for which keys $data may contain.
+     *
+     * @param  array<string, mixed>  $data  Expected keys: name, and optionally address_pool, shared_users, rate_limit, session_timeout, parent_queue.
+     * @return array<string, mixed> The created profile record as returned by the router.
+     *
+     * @throws MikrotikConnectionException
+     */
+    public function createHotspotProfile(array $data): array;
+
+    /**
+     * HotSpot IP bindings (/ip/hotspot/ip-binding) — MAC address entries
+     * that bypass, block, or get special NAT treatment at the HotSpot
+     * login step, independent of any voucher/user account. The device
+     * "name" has no dedicated RouterOS field; by convention (matching
+     * Mikhmon) it's stored in the binding's own comment field.
+     *
+     * @return array<int, array<string, mixed>>
+     *
+     * @throws MikrotikConnectionException
+     */
+    public function getIpBindings(): array;
+
+    /**
+     * @param  array<string, mixed>  $data  Expected keys: mac_address, type, and optionally name, address, to_address.
+     * @return array<string, mixed> The created binding record as returned by the router.
+     *
+     * @throws MikrotikConnectionException
+     */
+    public function createIpBinding(array $data): array;
+
+    /**
      * @return array<int, array<string, mixed>>
      *
      * @throws MikrotikConnectionException

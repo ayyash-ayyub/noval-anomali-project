@@ -5,6 +5,8 @@ use App\Http\Controllers\BatchController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\FailedJobController;
 use App\Http\Controllers\HotspotController;
+use App\Http\Controllers\HotspotIpBindingController;
+use App\Http\Controllers\HotspotProfileController;
 use App\Http\Controllers\MikrotikController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\SettingsController;
@@ -40,8 +42,13 @@ Route::middleware('auth')->group(function () {
 
     Route::prefix('hotspot')->name('hotspot.')->group(function () {
         Route::get('/profiles', [HotspotController::class, 'profiles'])->name('profiles');
+        Route::get('/profiles/create', [HotspotProfileController::class, 'create'])->name('profiles.create');
+        Route::post('/profiles', [HotspotProfileController::class, 'store'])->name('profiles.store')->middleware('throttle:mikrotik-test');
         Route::get('/users', [HotspotController::class, 'users'])->name('users');
         Route::get('/active', [HotspotController::class, 'active'])->name('active');
+        Route::get('/ip-bindings', [HotspotController::class, 'ipBindings'])->name('ip-bindings');
+        Route::get('/ip-bindings/create', [HotspotIpBindingController::class, 'create'])->name('ip-bindings.create');
+        Route::post('/ip-bindings', [HotspotIpBindingController::class, 'store'])->name('ip-bindings.store')->middleware('throttle:mikrotik-test');
     });
 
     Route::prefix('vouchers')->name('vouchers.')->group(function () {

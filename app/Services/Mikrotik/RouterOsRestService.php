@@ -2,8 +2,8 @@
 
 namespace App\Services\Mikrotik;
 
-use App\Enums\MikrotikStatus;
 use App\Models\Mikrotik;
+use App\Services\Mikrotik\Concerns\ClassifiesConnectionStatus;
 use App\Services\Mikrotik\Contracts\MikrotikServiceInterface;
 use App\Services\Mikrotik\DTO\ConnectionTestResult;
 use App\Services\Mikrotik\Exceptions\MikrotikConnectionException;
@@ -20,9 +20,9 @@ use Throwable;
  */
 class RouterOsRestService implements MikrotikServiceInterface
 {
-    public function __construct(private readonly Mikrotik $mikrotik)
-    {
-    }
+    use ClassifiesConnectionStatus;
+
+    public function __construct(private readonly Mikrotik $mikrotik) {}
 
     public function testConnection(): ConnectionTestResult
     {
@@ -35,15 +35,8 @@ class RouterOsRestService implements MikrotikServiceInterface
         }
 
         $elapsedMs = (int) round((microtime(true) - $start) * 1000);
-        $thresholds = config('mikrotik.status_thresholds');
 
-        $status = match (true) {
-            $elapsedMs < $thresholds['online_max_ms'] => MikrotikStatus::Online,
-            $elapsedMs <= $thresholds['degraded_max_ms'] => MikrotikStatus::Degraded,
-            default => MikrotikStatus::Offline,
-        };
-
-        return ConnectionTestResult::success($elapsedMs, $status);
+        return ConnectionTestResult::success($elapsedMs, $this->classifyStatus($elapsedMs));
     }
 
     public function getRouterInfo(): array
@@ -72,6 +65,66 @@ class RouterOsRestService implements MikrotikServiceInterface
     public function getHotspotUsers(): array
     {
         return $this->get('/ip/hotspot/user');
+    }
+
+    public function getIpPools(): array
+    {
+        return $this->get('/ip/pool');
+    }
+
+    public function createHotspotProfile(array $data): array
+    {
+        $payload = ['name' => $data['name']];
+
+        if (! empty($data['address_pool']) && $data['address_pool'] !== 'none') {
+            $payload['address-pool'] = $data['address_pool'];
+        }
+
+        if (! empty($data['shared_users'])) {
+            $payload['shared-users'] = (string) $data['shared_users'];
+        }
+
+        if (! empty($data['rate_limit'])) {
+            $payload['rate-limit'] = $data['rate_limit'];
+        }
+
+        if (! empty($data['session_timeout'])) {
+            $payload['session-timeout'] = $data['session_timeout'];
+        }
+
+        if (! empty($data['parent_queue']) && $data['parent_queue'] !== 'none') {
+            $payload['parent-queue'] = $data['parent_queue'];
+        }
+
+        return $this->put('/ip/hotspot/user/profile', $payload);
+    }
+
+    public function getIpBindings(): array
+    {
+        return $this->get('/ip/hotspot/ip-binding');
+    }
+
+    public function createIpBinding(array $data): array
+    {
+        $payload = ['mac-address' => $data['mac_address']];
+
+        if (! empty($data['type'])) {
+            $payload['type'] = $data['type'];
+        }
+
+        if (! empty($data['name'])) {
+            $payload['comment'] = $data['name'];
+        }
+
+        if (! empty($data['address'])) {
+            $payload['address'] = $data['address'];
+        }
+
+        if (! empty($data['to_address'])) {
+            $payload['to-address'] = $data['to_address'];
+        }
+
+        return $this->put('/ip/hotspot/ip-binding', $payload);
     }
 
     public function getActiveHotspotUsers(): array

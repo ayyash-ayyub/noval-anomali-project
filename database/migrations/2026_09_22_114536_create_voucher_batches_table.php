@@ -15,7 +15,7 @@ return new class extends Migration
             $table->string('profile');
             $table->unsignedInteger('quantity');
             $table->string('username_prefix');
-            $table->enum('username_method', ['sequential', 'random']);
+            $table->enum('username_method', ['sequential', 'random', 'user_equals_password']);
             $table->unsignedInteger('username_length');
             $table->enum('password_method', ['numeric', 'alphanumeric']);
             $table->unsignedInteger('password_length');

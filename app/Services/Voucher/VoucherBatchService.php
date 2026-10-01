@@ -52,11 +52,16 @@ class VoucherBatchService
             $mikrotik->id,
         );
 
-        $passwords = $this->passwordGenerator->generateMany(
-            $data['password_method'],
-            $data['password_length'],
-            $data['quantity'],
-        );
+        // "User = Password" mode: the password column is just the
+        // generated username again (same value for login and sandi) —
+        // password_method/password_length are ignored in this mode.
+        $passwords = $data['username_method'] === UsernameGenerationMethod::UserEqualsPassword
+            ? $usernames
+            : $this->passwordGenerator->generateMany(
+                $data['password_method'],
+                $data['password_length'],
+                $data['quantity'],
+            );
 
         // Read the profile's own session-timeout live from the router
         // rather than trusting a value submitted from the browser — the

@@ -72,6 +72,38 @@ class VoucherControllerTest extends TestCase
         $this->assertSame(5, Voucher::where('batch_id', $batch->id)->where('limit_uptime', '02:00:00')->count());
     }
 
+    public function test_user_equals_password_mode_sets_password_identical_to_username(): void
+    {
+        $operator = User::factory()->create();
+        $mikrotik = Mikrotik::factory()->create();
+
+        $fakeService = Mockery::mock(MikrotikServiceInterface::class);
+        $fakeService->shouldReceive('getHotspotProfiles')->andReturn([['name' => '2 Hours']]);
+        $fakeService->shouldReceive('findHotspotUser')->times(5)->andReturn(null);
+        $fakeService->shouldReceive('createHotspotUser')
+            ->times(5)
+            ->andReturn(['.id' => '*1', 'name' => 'JKT000001']);
+        $this->mockFactory($fakeService);
+
+        $response = $this->actingAs($operator)->post(route('vouchers.store'), $this->validPayload($mikrotik, [
+            'username_method' => 'user_equals_password',
+        ]));
+        $response->assertSessionDoesntHaveErrors();
+
+        $batch = VoucherBatch::first();
+        $vouchers = Voucher::where('batch_id', $batch->id)->get();
+
+        $this->assertCount(5, $vouchers);
+
+        foreach ($vouchers as $voucher) {
+            $this->assertSame($voucher->username, $voucher->password);
+            $this->assertStringStartsWith('JKT', $voucher->username);
+        }
+
+        // Still unique per voucher — not every row sharing one single value.
+        $this->assertCount(5, $vouchers->pluck('username')->unique());
+    }
+
     public function test_limit_uptime_stays_null_when_the_router_cannot_be_reached_during_generation(): void
     {
         $mikrotik = Mikrotik::factory()->create();

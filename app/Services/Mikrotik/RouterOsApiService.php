@@ -2,8 +2,8 @@
 
 namespace App\Services\Mikrotik;
 
-use App\Enums\MikrotikStatus;
 use App\Models\Mikrotik;
+use App\Services\Mikrotik\Concerns\ClassifiesConnectionStatus;
 use App\Services\Mikrotik\Contracts\MikrotikServiceInterface;
 use App\Services\Mikrotik\DTO\ConnectionTestResult;
 use App\Services\Mikrotik\Exceptions\MikrotikConnectionException;
@@ -15,9 +15,9 @@ use Throwable;
  */
 class RouterOsApiService implements MikrotikServiceInterface
 {
-    public function __construct(private readonly Mikrotik $mikrotik)
-    {
-    }
+    use ClassifiesConnectionStatus;
+
+    public function __construct(private readonly Mikrotik $mikrotik) {}
 
     public function testConnection(): ConnectionTestResult
     {
@@ -32,15 +32,8 @@ class RouterOsApiService implements MikrotikServiceInterface
         }
 
         $elapsedMs = (int) round((microtime(true) - $start) * 1000);
-        $thresholds = config('mikrotik.status_thresholds');
 
-        $status = match (true) {
-            $elapsedMs < $thresholds['online_max_ms'] => MikrotikStatus::Online,
-            $elapsedMs <= $thresholds['degraded_max_ms'] => MikrotikStatus::Degraded,
-            default => MikrotikStatus::Offline,
-        };
-
-        return ConnectionTestResult::success($elapsedMs, $status);
+        return ConnectionTestResult::success($elapsedMs, $this->classifyStatus($elapsedMs));
     }
 
     public function getRouterInfo(): array
@@ -75,6 +68,108 @@ class RouterOsApiService implements MikrotikServiceInterface
 
         try {
             return $client->query(['/ip/hotspot/user/profile/print']);
+        } finally {
+            $client->close();
+        }
+    }
+
+    public function getIpPools(): array
+    {
+        $client = $this->connectedClient();
+
+        try {
+            return $client->query(['/ip/pool/print']);
+        } finally {
+            $client->close();
+        }
+    }
+
+    public function createHotspotProfile(array $data): array
+    {
+        $client = $this->connectedClient();
+
+        try {
+            $sentence = ['/ip/hotspot/user/profile/add', '=name='.$data['name']];
+
+            if (! empty($data['address_pool']) && $data['address_pool'] !== 'none') {
+                $sentence[] = '=address-pool='.$data['address_pool'];
+            }
+
+            if (! empty($data['shared_users'])) {
+                $sentence[] = '=shared-users='.$data['shared_users'];
+            }
+
+            if (! empty($data['rate_limit'])) {
+                $sentence[] = '=rate-limit='.$data['rate_limit'];
+            }
+
+            if (! empty($data['session_timeout'])) {
+                $sentence[] = '=session-timeout='.$data['session_timeout'];
+            }
+
+            if (! empty($data['parent_queue']) && $data['parent_queue'] !== 'none') {
+                $sentence[] = '=parent-queue='.$data['parent_queue'];
+            }
+
+            $result = $client->execute($sentence);
+            $id = $result['done']['ret'] ?? null;
+
+            if ($id === null) {
+                throw new MikrotikConnectionException('RouterOS did not return an id for the created hotspot profile.');
+            }
+
+            $rows = $client->query(['/ip/hotspot/user/profile/print', '?.id='.$id]);
+
+            return $rows[0] ?? ['.id' => $id, 'name' => $data['name']];
+        } finally {
+            $client->close();
+        }
+    }
+
+    public function getIpBindings(): array
+    {
+        $client = $this->connectedClient();
+
+        try {
+            return $client->query(['/ip/hotspot/ip-binding/print']);
+        } finally {
+            $client->close();
+        }
+    }
+
+    public function createIpBinding(array $data): array
+    {
+        $client = $this->connectedClient();
+
+        try {
+            $sentence = ['/ip/hotspot/ip-binding/add', '=mac-address='.$data['mac_address']];
+
+            if (! empty($data['type'])) {
+                $sentence[] = '=type='.$data['type'];
+            }
+
+            if (! empty($data['name'])) {
+                $sentence[] = '=comment='.$data['name'];
+            }
+
+            if (! empty($data['address'])) {
+                $sentence[] = '=address='.$data['address'];
+            }
+
+            if (! empty($data['to_address'])) {
+                $sentence[] = '=to-address='.$data['to_address'];
+            }
+
+            $result = $client->execute($sentence);
+            $id = $result['done']['ret'] ?? null;
+
+            if ($id === null) {
+                throw new MikrotikConnectionException('RouterOS did not return an id for the created IP binding.');
+            }
+
+            $rows = $client->query(['/ip/hotspot/ip-binding/print', '?.id='.$id]);
+
+            return $rows[0] ?? ['.id' => $id, 'mac-address' => $data['mac_address']];
         } finally {
             $client->close();
         }
