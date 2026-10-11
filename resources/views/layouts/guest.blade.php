@@ -22,7 +22,7 @@
                 >
                 <p class="text-xs tracking-[0.4em] text-matrix-green-dim uppercase">System Access</p>
                 <h1 class="mt-1 text-2xl sm:text-3xl font-bold tracking-widest text-matrix-green drop-shadow-[0_0_8px_rgba(0,255,65,0.6)]">
-                    ALCOM
+                    ALCOM ART
                 </h1>
                 <p class="text-[11px] text-matrix-green-dark mt-1">WiFi Voucher Management System</p>
             </div>
