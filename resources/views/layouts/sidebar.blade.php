@@ -1,16 +1,16 @@
 <aside
     x-cloak
     :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'"
-    class="fixed inset-y-0 left-0 z-40 w-64 bg-matrix-surface border-r border-matrix-border transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:inset-auto flex flex-col"
+    class="fixed inset-y-0 left-0 z-40 w-64 bg-white border-r border-gray-200 transform transition-transform duration-200 ease-in-out lg:translate-x-0 lg:static lg:inset-auto flex flex-col"
 >
-    <a href="{{ route('dashboard') }}" class="h-16 flex items-center gap-2.5 px-4 border-b border-matrix-border shrink-0">
+    <a href="{{ route('dashboard') }}" class="h-16 flex items-center gap-2.5 px-4 border-b border-gray-200 shrink-0">
         <img
             src="{{ asset('images/logo.jpeg') }}"
             alt="Noval Anomali"
-            class="w-9 h-9 rounded-md object-cover shadow-matrix-glow shrink-0"
+            class="w-9 h-9 rounded-md object-cover shrink-0"
         >
-        <span class="text-xs text-matrix-green-dim leading-tight">
-            <span class="block text-matrix-green font-semibold tracking-wide">Noval Anomali</span>
+        <span class="text-xs text-gray-500 leading-tight">
+            <span class="block text-gray-900 font-semibold tracking-wide">Noval Anomali</span>
             Voucher System
         </span>
     </a>
@@ -20,7 +20,7 @@
             <span>&#9635;</span> Dashboard
         </x-sidebar-link>
 
-        <p class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-matrix-green-deep">MikroTik</p>
+        <p class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-gray-400">MikroTik</p>
         <x-sidebar-link :href="route('mikrotiks.index')" :active="request()->routeIs('mikrotiks.*')">
             <span>&#9711;</span> MikroTik
         </x-sidebar-link>
@@ -37,7 +37,7 @@
             <span>&#128225;</span> IP Bindings
         </x-sidebar-link>
 
-        <p class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-matrix-green-deep">Voucher</p>
+        <p class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-gray-400">Voucher</p>
         <x-sidebar-link :href="route('vouchers.index')" :active="request()->routeIs('vouchers.index')">
             <span>&#9776;</span> Voucher List
         </x-sidebar-link>
@@ -51,7 +51,7 @@
             <span>&#9113;</span> Print Voucher
         </x-sidebar-link>
 
-        <p class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-matrix-green-deep">Insight</p>
+        <p class="px-3 pt-4 pb-1 text-[10px] uppercase tracking-widest text-gray-400">Insight</p>
         <x-sidebar-link :href="route('reports.index')" :active="request()->routeIs('reports.index')">
             <span>&#9776;</span> Reports
         </x-sidebar-link>
@@ -69,7 +69,7 @@
         @endif
     </nav>
 
-    <div class="border-t border-matrix-border p-3 text-[11px] text-matrix-green-deep shrink-0">
+    <div class="border-t border-gray-200 p-3 text-[11px] text-gray-400 shrink-0">
         v0.1 &mdash; Foundation Phase
     </div>
 </aside>
